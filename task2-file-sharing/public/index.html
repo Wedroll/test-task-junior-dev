@@ -13,7 +13,10 @@
                 <input type="file" id = "fileInput" name = "file" required>
                 <button type = "submit">Upload</button>
             </form>
-            <div id = "status">Status: Ready</div>
+            <div id = "status">
+                Status: Ready
+                <progress id = "progressBar" value = "0" max = "100"></progress>
+            </div>
             <div id = "link">Download link: <span id = "downloadLink"></span></div>
         </div>
         <script src = "script.js"></script>
