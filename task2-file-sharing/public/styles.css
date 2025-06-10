@@ -1,0 +1,35 @@
+.container{
+    max-width: 600px;
+    margin: 50px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    text-align: center;
+}
+
+h1{
+    font-size: 24px;
+    color: #333;
+}
+
+#uploadForm{
+    margin: 20px 0;
+}
+
+#fileInput{
+    margin-right: 10px;
+}
+
+#status, #link{
+    margin-top: 10px;
+    font-size: 16px;
+}
+
+#link a{
+    color: #0066cc;
+    text-decoration: none;
+}
+
+#link a:hover{
+    text-decoration: underline;
+}
