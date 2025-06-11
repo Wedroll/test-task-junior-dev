@@ -1,47 +1,107 @@
-.container{
+.container {
     max-width: 600px;
-    margin: 50px auto;
+    margin: 20px auto;
     padding: 20px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    text-align: center;
+    font-family: Arial, sans-serif;
 }
 
-h1{
-    font-size: 24px;
+h1 {
+    text-align: center;
     color: #333;
 }
 
-#uploadForm{
-    margin: 20px 0;
-}
-
-#fileInput{
-    margin-right: 10px;
-}
-
-#status, #link{
-    margin-top: 10px;
-    font-size: 16px;
-}
-
-#status{
+form {
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
 }
 
-#progressBar{
-    width: 100%;
-    height: 20px;
-    margin-top: 5px;
+button {
+    padding: 10px 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
 }
 
-#link a{
+button:hover {
+    background-color: #45a049;
+}
+
+#status {
+    margin-bottom: 10px;
+    color: #555;
+}
+
+#downloadLink {
+    margin-top: 10px;
+}
+
+#downloadLink a {
     color: #0066cc;
     text-decoration: none;
 }
 
-#link a:hover{
+#downloadLink a:hover {
+    text-decoration: underline;
+}
+
+#progressBar {
+    width: 100%;
+    height: 20px;
+    margin-top: 10px;
+    display: none; 
+    transition: opacity 0.5s; 
+}
+
+.stats-container {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 16px;
+}
+
+.stat-item span:last-child {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.file-list-container {
+    margin-top: 20px;
+}
+
+.file-list {
+    max-height: 200px;
+    overflow-y: auto; 
+    list-style-type: none;
+    padding: 0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+.file-list li {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.file-list li:last-child {
+    border-bottom: none;
+}
+
+.file-list a {
+    color: #0066cc;
+    text-decoration: none;
+    margin-left: 10px;
+}
+
+.file-list a:hover {
     text-decoration: underline;
 }

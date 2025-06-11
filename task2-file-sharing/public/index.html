@@ -1,24 +1,37 @@
 <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>File Sharing Service</title>
-        <link rel="stylesheet" href="styles.css">
-    </head>
-    <body>
-        <div class = "container">
-            <h1>File Upload Servise</h1>
-            <form id = "uploadForm">
-                <input type="file" id = "fileInput" name = "file" required>
-                <button type = "submit">Upload</button>
-            </form>
-            <div id = "status">
-                Status: Ready
-                <progress id = "progressBar" value = "0" max = "100"></progress>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Sharing Service</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>File Upload Service</h1>
+        <form id="uploadForm">
+            <input type="file" id="fileInput" name="file" required>
+            <button type="submit">Upload</button>
+        </form>
+        <div id="status">Status: Ready</div>
+        <progress id="progressBar" value="0" max="100"></progress>
+        <div id="link">Download link: <span id="downloadLink"></span></div>
+        <div class="stats-container">
+            <div class="stat-item">
+                <span>Uploaded Files:</span>
+                <span id="uploadCount">0</span>
             </div>
-            <div id = "link">Download link: <span id = "downloadLink"></span></div>
+            <div class="stat-item">
+                <span>Downloaded Files:</span>
+                <span id="downloadCount">0</span>
+            </div>
         </div>
-        <script src = "script.js"></script>
-    </body>
-    </html>
+        
+        <div class="file-list-container">
+            <h3>Uploaded Files</h3>
+            <ul id="fileList" class="file-list"></ul>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
