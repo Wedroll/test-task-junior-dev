@@ -1,4 +1,4 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import multer, { StorageEngine } from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
@@ -10,95 +10,105 @@ app.use(cors());
 const uploadDir: string = path.join(__dirname, 'uploads');
 const port: number = 3000;
 
+const AUTH_TOKEN = '111';
+
 interface FileMetadata {
-  filename: string;           
-  uploadedAt: number;         
-  lastDownloadedAt?: number;  
+  filename: string;
+  uploadedAt: number;
+  lastDownloadedAt?: number;
 }
 
 const fileMetadata: { [key: string]: FileMetadata } = {};
-let uploadCount: number = 0;   
-let downloadCount: number = 0;  
+let uploadCount: number = 0;
+let downloadCount: number = 0;
+
+const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+  const token = req.headers['authorization'];
+  if (!token || token !== AUTH_TOKEN) {
+    return res.status(403).json({ message: 'Unauthorized: Invalid or missing token' });
+  }
+  next();
+};
 
 const publicPath = path.join(__dirname, '..', 'public');
-console.log('Public path:', publicPath);                
-app.use(express.static(publicPath, { index: 'index.html' })); 
+console.log('Public path:', publicPath);
+app.use(express.static(publicPath, { index: 'index.html' }));
 
 if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir); 
+  fs.mkdirSync(uploadDir);
 }
 
 const storage: StorageEngine = multer.diskStorage({
   destination: uploadDir,
   filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
     const uniqueFilename: string = `${uuidv4()}-${file.originalname}`;
-    cb(null, uniqueFilename); 
+    cb(null, uniqueFilename);
   }
 });
 
 const upload = multer({ storage: storage });
 
-app.post('/upload', upload.single('file'), (req: Request, res: Response) => {
+app.post('/upload', authenticateToken, upload.single('file'), (req: Request, res: Response) => {
   console.log('Received file:', req.file);
-  if (!req.file) {                        
+  if (!req.file) {
     res.status(400).json({ message: 'No file uploaded' });
-    return;                               
+    return;
   }
-  const fileUrl: string = `/download/${req.file.filename}`; 
-  fileMetadata[req.file.filename] = {     
+  const fileUrl: string = `/download/${req.file.filename}`;
+  fileMetadata[req.file.filename] = {
     filename: req.file.filename,
-    uploadedAt: Date.now(),              
+    uploadedAt: Date.now(),
   };
-  uploadCount++;                          
-  res.status(200).json({ link: fileUrl }); 
+  uploadCount++;
+  res.status(200).json({ link: fileUrl });
 });
 
-app.get('/download/:filename', (req: Request, res: Response) => {
-  const filePath = path.join(uploadDir, req.params.filename); 
-  console.log('Trying to serve file:', filePath);            
-  if (fs.existsSync(filePath)) {                             
-    fileMetadata[req.params.filename] = {                   
+app.get('/download/:filename', authenticateToken, (req: Request, res: Response) => {
+  const filePath = path.join(uploadDir, req.params.filename);
+  console.log('Trying to serve file:', filePath);
+  if (fs.existsSync(filePath)) {
+    fileMetadata[req.params.filename] = {
       ...fileMetadata[req.params.filename],
-      lastDownloadedAt: Date.now(),                        
+      lastDownloadedAt: Date.now(),
     };
-    downloadCount++;                                        
-    res.sendFile(filePath);                                 
+    downloadCount++;
+    res.sendFile(filePath);
   } else {
-    res.status(404).json({ message: 'File not found' });    
+    res.status(404).json({ message: 'File not found' });
   }
 });
 
-app.get('/stats', (req: Request, res: Response) => {
-  res.status(200).json({              
-    uploadCount: uploadCount,         
-    downloadCount: downloadCount,     
+app.get('/stats', authenticateToken, (req: Request, res: Response) => {
+  res.status(200).json({
+    uploadCount: uploadCount,
+    downloadCount: downloadCount,
   });
 });
 
-app.get('/files', (req: Request, res: Response) => {
-  const filesArray = Object.values(fileMetadata); 
-  res.status(200).json(filesArray);              
+app.get('/files', authenticateToken, (req: Request, res: Response) => {
+  const filesArray = Object.values(fileMetadata);
+  res.status(200).json(filesArray);
 });
 
 const cleanOldFiles = () => {
-  const thirtyDaysInMs = 10000;
-  const now = Date.now();                         
-  for (const filename in fileMetadata) {          
-    const meta = fileMetadata[filename];          
-    const lastAccessed = meta.lastDownloadedAt || meta.uploadedAt; 
-    if (now - lastAccessed > thirtyDaysInMs) {    
-      const filePath = path.join(uploadDir, filename); 
-      if (fs.existsSync(filePath)) {             
-        fs.unlinkSync(filePath);                 
-        delete fileMetadata[filename];           
-        console.log(`Deleted old file: ${filename}`); 
+  const thirtyDaysInMs = 30 * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  for (const filename in fileMetadata) {
+    const meta = fileMetadata[filename];
+    const lastAccessed = meta.lastDownloadedAt || meta.uploadedAt;
+    if (now - lastAccessed > thirtyDaysInMs) {
+      const filePath = path.join(uploadDir, filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        delete fileMetadata[filename];
+        console.log(`Deleted old file: ${filename}`);
       }
     }
   }
 };
 
-setInterval(cleanOldFiles, 1000); ;
+setInterval(cleanOldFiles, 24 * 60 * 60 * 1000);
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`); 
+  console.log(`Server running at http://localhost:${port}`);
 });

@@ -9,6 +9,10 @@
 <body>
     <div class="container">
         <h1>File Upload Service</h1>
+        <div class="auth-container">
+            <label for="authToken">Authorization Token:</label>
+            <input type="text" id="authToken" placeholder="Enter token (your-secret-token-123)">
+        </div>
         <form id="uploadForm">
             <input type="file" id="fileInput" name="file" required>
             <button type="submit">Upload</button>
@@ -26,7 +30,6 @@
                 <span id="downloadCount">0</span>
             </div>
         </div>
-        
         <div class="file-list-container">
             <h3>Uploaded Files</h3>
             <ul id="fileList" class="file-list"></ul>
