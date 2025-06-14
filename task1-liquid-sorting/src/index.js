@@ -46,6 +46,21 @@ class LiquidSorter {
         toTube.push(...moved);
         this.moves.push(`(${fromIdx}, ${toIdx})`);
     }
+
+    sort() {
+        while (!this.isSorted()) {
+            for (let i = 0; i < this.numTubes; i++) {
+                for (let j = 0; j < this.numTubes; j++) {
+                    if (i !== j && this.canPour(this.tubes[i], this.tubes[j])) {
+                        this.pour(i, j);
+                        break;
+                    }
+                }
+                if (this.isSorted()) break;
+            }
+        }
+        return this.moves;
+    }
 }
 
 const tubes = [
@@ -56,5 +71,6 @@ const tubes = [
 const capacity = 6;
 
 const sorter = new LiquidSorter(tubes, capacity);
-console.log("Sorter initialized with", sorter.numTubes, "tubes.");
-console.log("Is sorted:", sorter.isSorted());
+const moves = sorter.sort();
+console.log("Number of moves:", moves.length);
+console.log("Moves:", moves.join(" "));
