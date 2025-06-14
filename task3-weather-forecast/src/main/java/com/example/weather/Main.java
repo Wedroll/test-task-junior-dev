@@ -1,12 +1,14 @@
 package com.example.weather;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLEncoder;
+import java.nio.file.Files;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +18,14 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import org.jfree.chart.ChartFactory;
+import org.jfree.chart.JFreeChart;
+import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.chart.ChartUtils;
 
 public class Main {
     private static final String GEO_API_URL = "https://geocoding-api.open-meteo.com/v1/search?name=";
@@ -58,6 +67,10 @@ public class Main {
                                 city = city.substring(0, city.indexOf("&"));
                             }
                             city = URLEncoder.encode(city, "UTF-8").replace("+", "%20");
+                        } else if (path.equals("/temperature_chart.png")) {
+                            serveImage(out, in, clientSocket);
+                            clientSocket.close();
+                            continue;
                         }
                     }
                 }
@@ -66,6 +79,7 @@ public class Main {
             if (city != null) {
                 JSONObject weatherData = getWeatherData(city);
                 if (weatherData != null) {
+                    generateTemperatureChart(weatherData, city);
                     out.println("HTTP/1.1 200 OK");
                     out.println("Content-Type: text/html");
                     out.println();
@@ -73,7 +87,7 @@ public class Main {
                     out.println("<h1>Weather Forecast for " + city + "</h1>");
                     double[] coords = getCityCoordinates(city);
                     out.println("<p>Latitude: " + coords[0] + ", Longitude: " + coords[1] + "</p>");
-                    out.println("<p>Current temperature data will be added soon...</p>");
+                    out.println("<img src='/temperature_chart.png' alt='Temperature Chart'>");
                     out.println("</body></html>");
                 } else {
                     sendErrorResponse(out, "Failed to fetch weather data for: " + city);
@@ -130,6 +144,58 @@ public class Main {
             JSONObject obj = new JSONObject(json);
             cache.put("weather_" + city, new CacheEntry(obj, Instant.now().toEpochMilli() + CACHE_TTL_MINUTES * 60 * 1000));
             return obj;
+        }
+    }
+
+    private static void generateTemperatureChart(JSONObject weatherData, String city) throws IOException {
+        System.out.println("Generating chart for " + city);
+        if (!weatherData.has("hourly") || weatherData.isNull("hourly")) {
+            System.out.println("No hourly data available for " + city);
+            return;
+        }
+
+        JSONObject hourly = weatherData.getJSONObject("hourly");
+        JSONArray temperatures = hourly.getJSONArray("temperature_2m");
+        JSONArray times = hourly.getJSONArray("time");
+        System.out.println("Temperatures length: " + temperatures.length());
+        System.out.println("Times length: " + times.length());
+
+        if (temperatures.length() == 0 || times.length() == 0) {
+            System.out.println("No temperature or time data available");
+            return;
+        }
+
+        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        for (int i = 0; i < Math.min(temperatures.length(), 24); i++) {
+            String time = times.getString(i).substring(11, 16);
+            dataset.addValue(temperatures.getDouble(i), "Temperature (°C)", time);
+        }
+
+        JFreeChart chart = ChartFactory.createBarChart(
+                "Temperature for " + city,
+                "Time",
+                "Temperature (°C)",
+                dataset,
+                PlotOrientation.VERTICAL,
+                false, false, false
+        );
+
+        ChartUtils.saveChartAsPNG(new File("temperature_chart.png"), chart, 600, 400);
+        System.out.println("Chart saved as temperature_chart.png");
+    }
+
+    private static void serveImage(PrintWriter out, BufferedReader in, Socket clientSocket) throws IOException {
+        File file = new File("temperature_chart.png");
+        if (file.exists()) {
+            out.println("HTTP/1.1 200 OK");
+            out.println("Content-Type: image/png");
+            out.println();
+            Files.copy(file.toPath(), clientSocket.getOutputStream());
+        } else {
+            out.println("HTTP/1.1 404 Not Found");
+            out.println("Content-Type: text/html");
+            out.println();
+            out.println("<h1>File Not Found</h1>");
         }
     }
 
