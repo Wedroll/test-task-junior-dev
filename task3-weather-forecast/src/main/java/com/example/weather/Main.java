@@ -7,6 +7,9 @@ import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URLEncoder;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -17,6 +20,19 @@ import org.json.JSONObject;
 
 public class Main {
     private static final String GEO_API_URL = "https://geocoding-api.open-meteo.com/v1/search?name=";
+    private static final String WEATHER_API_URL = "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=temperature_2m";
+    private static final int CACHE_TTL_MINUTES = 15;
+    private static final Map<String, CacheEntry> cache = new HashMap<>();
+
+    static class CacheEntry {
+        JSONObject weatherData;
+        long expiryTime;
+
+        CacheEntry(JSONObject data, long expiryTime) {
+            this.weatherData = data;
+            this.expiryTime = expiryTime;
+        }
+    }
 
     public static void main(String[] args) throws IOException {
         ServerSocket serverSocket = new ServerSocket(8080);
@@ -48,18 +64,19 @@ public class Main {
             }
 
             if (city != null) {
-                double[] coords = getCityCoordinates(city);
-                if (coords != null) {
+                JSONObject weatherData = getWeatherData(city);
+                if (weatherData != null) {
                     out.println("HTTP/1.1 200 OK");
                     out.println("Content-Type: text/html");
                     out.println();
                     out.println("<!DOCTYPE html><html><head><title>Weather Forecast</title></head><body>");
                     out.println("<h1>Weather Forecast for " + city + "</h1>");
+                    double[] coords = getCityCoordinates(city);
                     out.println("<p>Latitude: " + coords[0] + ", Longitude: " + coords[1] + "</p>");
-                    out.println("<p>Weather data will be added soon...</p>");
+                    out.println("<p>Current temperature data will be added soon...</p>");
                     out.println("</body></html>");
                 } else {
-                    sendErrorResponse(out, "City not found: " + city);
+                    sendErrorResponse(out, "Failed to fetch weather data for: " + city);
                 }
             } else {
                 out.println("HTTP/1.1 200 OK");
@@ -73,16 +90,46 @@ public class Main {
     }
 
     private static double[] getCityCoordinates(String city) throws IOException {
+        CacheEntry cachedCoords = cache.get("coords_" + city);
+        if (cachedCoords != null && Instant.now().toEpochMilli() < cachedCoords.expiryTime) {
+            JSONObject data = cachedCoords.weatherData;
+            if (data.has("results") && data.getJSONArray("results").length() > 0) {
+                JSONObject result = data.getJSONArray("results").getJSONObject(0);
+                return new double[]{result.getDouble("latitude"), result.getDouble("longitude")};
+            }
+        }
+
         CloseableHttpClient client = HttpClients.createDefault();
         HttpGet request = new HttpGet(GEO_API_URL + city);
         try (CloseableHttpResponse response = client.execute(request)) {
             String json = EntityUtils.toString(response.getEntity());
             JSONObject obj = new JSONObject(json);
             if (obj.has("results") && obj.getJSONArray("results").length() > 0) {
+                cache.put("coords_" + city, new CacheEntry(obj, Instant.now().toEpochMilli() + CACHE_TTL_MINUTES * 60 * 1000));
                 JSONObject result = obj.getJSONArray("results").getJSONObject(0);
                 return new double[]{result.getDouble("latitude"), result.getDouble("longitude")};
             }
             return null;
+        }
+    }
+
+    private static JSONObject getWeatherData(String city) throws IOException {
+        double[] coords = getCityCoordinates(city);
+        if (coords == null) return null;
+
+        CacheEntry cachedWeather = cache.get("weather_" + city);
+        if (cachedWeather != null && Instant.now().toEpochMilli() < cachedWeather.expiryTime) {
+            return cachedWeather.weatherData;
+        }
+
+        CloseableHttpClient client = HttpClients.createDefault();
+        String url = WEATHER_API_URL.replace("{lat}", String.valueOf(coords[0])).replace("{lon}", String.valueOf(coords[1]));
+        HttpGet request = new HttpGet(url);
+        try (CloseableHttpResponse response = client.execute(request)) {
+            String json = EntityUtils.toString(response.getEntity());
+            JSONObject obj = new JSONObject(json);
+            cache.put("weather_" + city, new CacheEntry(obj, Instant.now().toEpochMilli() + CACHE_TTL_MINUTES * 60 * 1000));
+            return obj;
         }
     }
 
